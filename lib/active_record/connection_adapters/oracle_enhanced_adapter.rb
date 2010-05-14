@@ -490,7 +490,7 @@ module ActiveRecord
 
       def quote_table_name(name) #:nodoc:
         name = name.to_s
-        @quoted_table_names[name] ||= name.split('.').map{|n| n.split('@').map{|m| quote_column_name(m)}.join('@')}.join('.')
+        @quoted_table_names[name] ||= name.split('.').map{|n| n.split('@').map{|m| quote_column_name(m)}.join('@')}.join('.').downcase
       end
       
       def quote_string(s) #:nodoc:
