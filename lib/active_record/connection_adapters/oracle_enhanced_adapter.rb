@@ -465,6 +465,12 @@ module ActiveRecord
         name = name.to_s
         @quoted_column_names[name] ||= begin
           case name
+          # WORKAROUND: (Rails 3) convert simplistic column/table names to unquoted lower-case
+          # This is at least needed for compatibility with the following in 3.0.0.beta3:
+          #  - ActiveRecord::Associations::JoinDependency::JoinAssociation#aliased_table_name_for
+          when /^[a-z][a-z_0-9]*$/
+            name.downcase
+            
           # if only valid column characters in name
           when /^[a-z][a-z_0-9\$#]*$/
             "\"#{name.upcase}\""
@@ -490,7 +496,7 @@ module ActiveRecord
 
       def quote_table_name(name) #:nodoc:
         name = name.to_s
-        @quoted_table_names[name] ||= name.split('.').map{|n| n.split('@').map{|m| quote_column_name(m)}.join('@')}.join('.').downcase
+        @quoted_table_names[name] ||= name.split('.').map{|n| n.split('@').map{|m| quote_column_name(m)}.join('@')}.join('.')
       end
       
       def quote_string(s) #:nodoc:
