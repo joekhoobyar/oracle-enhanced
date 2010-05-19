@@ -465,12 +465,6 @@ module ActiveRecord
         name = name.to_s
         @quoted_column_names[name] ||= begin
           case name
-          # WORKAROUND: (Rails 3) convert simplistic column/table names to unquoted lower-case
-          # This is at least needed for compatibility with the following in 3.0.0.beta3:
-          #  - ActiveRecord::Associations::JoinDependency::JoinAssociation#aliased_table_name_for
-          when /^[a-z][a-z_0-9]*$/
-            name.downcase
-            
           # if only valid column characters in name
           when /^[a-z][a-z_0-9\$#]*$/
             "\"#{name.upcase}\""
@@ -1053,7 +1047,7 @@ module ActiveRecord
         result = block.call(table_definition) if block
         create_sequence = create_sequence || table_definition.create_sequence
         column_comments = table_definition.column_comments if table_definition.column_comments
-        tablespace = options[:tablespace] ? " TABLESPACE #{options[:tablespace]}" : ""
+
 
         if options[:force] && table_exists?(name)
           drop_table(name, options)
@@ -1062,7 +1056,7 @@ module ActiveRecord
         create_sql = "CREATE#{' GLOBAL TEMPORARY' if options[:temporary]} TABLE "
         create_sql << "#{quote_table_name(name)} ("
         create_sql << table_definition.to_sql
-        create_sql << ")#{tablespace} #{options[:options]}"
+        create_sql << ") #{options[:options]}"
         execute create_sql
         
         create_sequence_and_trigger(name, options) if create_sequence
@@ -1101,7 +1095,7 @@ module ActiveRecord
           index_type = options
         end
         quoted_column_names = column_names.map { |e| quote_column_name(e) }.join(", ")
-        execute "CREATE #{index_type} INDEX #{quote_column_name(index_name)} ON #{quote_table_name(table_name)} (#{quoted_column_names})#{tablespace} #{options[:options]}"
+        execute "CREATE #{index_type} INDEX #{quote_column_name(index_name)} ON #{quote_table_name(table_name)} (#{quoted_column_names})#{tablespace}"
       end
 
       # clear cached indexes when removing index
