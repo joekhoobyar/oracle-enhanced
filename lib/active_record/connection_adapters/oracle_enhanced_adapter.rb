@@ -751,6 +751,26 @@ module ActiveRecord
       #
       # see: abstract/schema_statements.rb
 
+      ##
+      # :singleton-method:
+      # Specify non-default time format that should be used when assigning string values to :datetime columns, e.g.:
+      # 
+      #   ActiveRecord::ConnectionAdapters::OracleEnhancedAdapter.string_to_time_format = “%d.%m.%Y %H:%M:%S”
+      cattr_accessor :extra_table_owners
+      self.extra_table_owners = nil
+
+      protected
+      
+      # Returns an owner clause for filtering schema elements from resultsets.
+      def owner_clause(column='owner',with="sys_context('userenv','session_user')")
+        unless extra_table_owners.present? then "#{column} = #{with}" else
+          with = ([with] + Array(extra_table_owners).map{|v| quote v.upcase }).join(', ')
+          "#{column} IN (#{with})"
+        end
+      end
+
+      public
+
       # Current database name
       def current_database
         select_value("select sys_context('userenv','db_name') from dual")
@@ -767,13 +787,18 @@ module ActiveRecord
       end
 
       def tables(name = nil) #:nodoc:
-        select_values(
-        "select decode(table_name,upper(table_name),lower(table_name),table_name) from all_tables where owner = sys_context('userenv','session_user') and secondary='N'",
-        name)
+        select_values(<<-SQL,name)
+          SELECT DECODE(owner,
+                    sys_context('userenv','session_user'), '',
+			              DECODE(owner,UPPER(owner),LOWER(owner),owner)||'.'
+			      ) || DECODE(table_name,UPPER(table_name),LOWER(table_name),table_name)
+          FROM all_tables
+          WHERE #{owner_clause} AND secondary='N'
+        SQL
       end
 
       def materialized_views #:nodoc:
-        select_values("select lower(mview_name) from all_mviews where owner = sys_context('userenv','session_user')")
+        select_values("select lower(mview_name) from all_mviews where #{owner_clause}")
       end
 
       cattr_accessor :all_schema_indexes #:nodoc:
@@ -1335,7 +1360,7 @@ module ActiveRecord
               on a.constraint_name = c.constraint_name 
            where c.table_name = '#{table.upcase}' 
              and c.constraint_type = 'P'
-             and c.owner = sys_context('userenv', 'session_user')
+             and c.owner = sys_context('userenv','session_user')
         SQL
         pks.each do |row|
           opts[:name] = row['constraint_name']
